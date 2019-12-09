@@ -5,14 +5,23 @@
  * Licensed under the Zeebe Community License 1.0. You may not use this file
  * except in compliance with the Zeebe Community License 1.0.
  */
-package io.zeebe.broker.exporter;
+package io.zeebe.broker.bootstrap;
 
-import io.zeebe.servicecontainer.ServiceName;
+public class StartStep {
 
-public class ExporterServiceNames {
+  private final String name;
+  private final StartFunction startFunction;
 
-  public static ServiceName<ExporterDirectorService> exporterDirectorServiceName(int partitionId) {
-    final String name = String.format("io.zeebe.broker.exporter.%d", partitionId);
-    return ServiceName.newServiceName(name, ExporterDirectorService.class);
+  public StartStep(String name, StartFunction startFunction) {
+    this.name = name;
+    this.startFunction = startFunction;
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public StartFunction getStartFunction() {
+    return startFunction;
   }
 }

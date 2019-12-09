@@ -5,18 +5,23 @@
  * Licensed under the Zeebe Community License 1.0. You may not use this file
  * except in compliance with the Zeebe Community License 1.0.
  */
-package io.zeebe.broker.clustering.base.partitions;
+package io.zeebe.broker.bootstrap;
 
-public class PartitionAlreadyExistsException extends RuntimeException {
+public class CloseStep {
 
-  private final int partitionId;
+  private final String name;
+  private final AutoCloseable closingFunction;
 
-  public PartitionAlreadyExistsException(final int partitionId) {
-    super("Partition with id " + partitionId + " already exists");
-    this.partitionId = partitionId;
+  public CloseStep(String name, AutoCloseable closingFunction) {
+    this.name = name;
+    this.closingFunction = closingFunction;
   }
 
-  public int getPartitionId() {
-    return partitionId;
+  public String getName() {
+    return name;
+  }
+
+  public AutoCloseable getClosingFunction() {
+    return closingFunction;
   }
 }

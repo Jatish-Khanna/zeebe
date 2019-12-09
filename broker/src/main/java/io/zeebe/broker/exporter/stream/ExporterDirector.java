@@ -20,7 +20,6 @@ import io.zeebe.exporter.api.context.Controller;
 import io.zeebe.logstreams.log.LogStream;
 import io.zeebe.logstreams.log.LogStreamReader;
 import io.zeebe.logstreams.log.LoggedEvent;
-import io.zeebe.logstreams.spi.LogStorage;
 import io.zeebe.protocol.impl.record.RecordMetadata;
 import io.zeebe.protocol.impl.record.UnifiedRecordValue;
 import io.zeebe.protocol.record.RecordType;
@@ -55,30 +54,29 @@ public class ExporterDirector extends Actor {
   private final AtomicBoolean isOpened = new AtomicBoolean(false);
   private final List<ExporterContainer> containers;
   private final LogStream logStream;
-  private final LogStreamReader logStreamReader;
   private final RecordExporter recordExporter;
   private final ZeebeDb zeebeDb;
   private final ExporterMetrics metrics;
   private final String name;
   private final RetryStrategy exportingRetryStrategy;
   private final RetryStrategy recordWrapStrategy;
-  private final LogStorage logStorage;
+  private LogStreamReader logStreamReader;
   private EventFilter eventFilter;
   private ExportersState state;
 
   private ActorCondition onCommitPositionUpdatedCondition;
   private boolean inExportingPhase;
+  private final int exporterCount;
 
   public ExporterDirector(ExporterDirectorContext context) {
     this.name = context.getName();
+    exporterCount = context.getDescriptors().size();
     this.containers =
         context.getDescriptors().stream().map(ExporterContainer::new).collect(Collectors.toList());
 
     this.logStream = Objects.requireNonNull(context.getLogStream());
-    this.logStorage = Objects.requireNonNull(context.getLogStorage());
     final int partitionId = logStream.getPartitionId();
     this.recordExporter = new RecordExporter(containers, partitionId);
-    this.logStreamReader = context.getLogStreamReader();
     this.exportingRetryStrategy = new BackOffRetryStrategy(actor, Duration.ofSeconds(10));
     this.recordWrapStrategy = new EndlessRetryStrategy(actor);
 
@@ -102,7 +100,23 @@ public class ExporterDirector extends Actor {
 
   @Override
   protected void onActorStarting() {
-    this.logStreamReader.wrap(logStorage);
+    final ActorFuture<LogStreamReader> newReaderFuture = logStream.newLogStreamReader();
+    actor.runOnCompletionBlockingCurrentPhase(
+        newReaderFuture,
+        (reader, errorOnReceivingReader) -> {
+          if (errorOnReceivingReader == null) {
+            logStreamReader = reader;
+          } else {
+            // TODO https://github.com/zeebe-io/zeebe/issues/3499
+            // ideally we could fail the actor start future such that we are able to propagate the
+            // error
+            LOG.error(
+                "Unexpected error on retrieving reader from log {}",
+                logStream.getLogName(),
+                errorOnReceivingReader);
+            actor.close();
+          }
+        });
   }
 
   @Override
@@ -171,7 +185,13 @@ public class ExporterDirector extends Actor {
   }
 
   public ActorFuture<Long> getLowestExporterPosition() {
-    return actor.call(() -> state.getLowestPosition());
+    return actor.call(
+        () -> {
+          if (exporterCount == 0) {
+            return Long.MAX_VALUE;
+          }
+          return state.getLowestPosition();
+        });
   }
 
   private ExporterEventFilter createEventFilter(List<ExporterContainer> containers) {

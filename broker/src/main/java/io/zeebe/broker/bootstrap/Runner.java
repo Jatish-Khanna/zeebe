@@ -5,9 +5,9 @@
  * Licensed under the Zeebe Community License 1.0. You may not use this file
  * except in compliance with the Zeebe Community License 1.0.
  */
-package io.zeebe.broker.clustering.base.partitions;
+package io.zeebe.broker.bootstrap;
 
-public enum RaftState {
-  LEADER,
-  FOLLOWER
+@FunctionalInterface
+public interface Runner {
+  void run() throws Exception;
 }
