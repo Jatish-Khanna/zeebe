@@ -38,10 +38,8 @@ type DispatchThrowErrorCommand interface {
 }
 
 type ThrowErrorCommand struct {
-	requestTimeout time.Duration
-	request        pb.ThrowErrorRequest
-	retryPredicate func(error) bool
-	gateway        pb.GatewayClient
+	Command
+	request pb.ThrowErrorRequest
 }
 
 func (c *ThrowErrorCommand) JobKey(jobKey int64) ThrowErrorCommandStep2 {
@@ -68,9 +66,11 @@ func (c *ThrowErrorCommand) Send() (*pb.ThrowErrorResponse, error) {
 
 func NewThrowErrorCommand(gateway pb.GatewayClient, requestTimeout time.Duration, retryPredicate func(error) bool) ThrowErrorCommandStep1 {
 	return &ThrowErrorCommand{
-		requestTimeout: requestTimeout,
-		gateway:        gateway,
-		retryPredicate: retryPredicate,
+		Command: Command{
+			requestTimeout: requestTimeout,
+			gateway:        gateway,
+			retryPredicate: retryPredicate,
+		},
 	}
 
 }
