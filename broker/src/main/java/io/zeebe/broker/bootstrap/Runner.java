@@ -8,6 +8,6 @@
 package io.zeebe.broker.bootstrap;
 
 @FunctionalInterface
-public interface Runner {
+public interface CheckedRunnable {
   void run() throws Exception;
 }
